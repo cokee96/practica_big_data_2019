@@ -6,7 +6,7 @@ frozendict
 geopy
 ipython
 kafka-python
-matplotlib
+Matplotlib
 numpy
 py4j
 pyelasticsearch

@@ -5,6 +5,7 @@ ABSOLUTE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_
 ABSOLUTE_DIR=$(dirname "${ABSOLUTE_PATH}")
 
 # Extract to Agile_Data_Code_2/data/on_time_performance.parquet, wherever we are executed from
+mkdir $ABSOLUTE_DIR/../data
 cd $ABSOLUTE_DIR/../data/
 curl -Lko ./simple_flight_delay_features.jsonl.bz2 http://s3.amazonaws.com/agile_data_science/simple_flight_delay_features.jsonl.bz2
 

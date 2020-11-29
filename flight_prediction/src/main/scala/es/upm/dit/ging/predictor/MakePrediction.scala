@@ -18,13 +18,17 @@ object MakePrediction {
       .appName("StructuredNetworkWordCount")
       .master("local[*]")
       .getOrCreate()
+    println("Previo a implicits")
     import spark.implicits._
 
     //Load the arrival delay bucketizer
-    val base_path= "/home/user/Desktop/practica_big_data_2019"
+    println("Punto 1")
+    val base_path= "/practica_big_data_2019/"
     val arrivalBucketizerPath = "%s/models/arrival_bucketizer_2.0.bin".format(base_path)
+    println("Punto 2")
     print(arrivalBucketizerPath.toString())
     val arrivalBucketizer = Bucketizer.load(arrivalBucketizerPath)
+    println("Punto 3")
     val columns= Seq("Carrier","Origin","Dest","Route")
 
     //Load all the string field vectorizer pipelines into a dict
@@ -46,7 +50,7 @@ object MakePrediction {
     val df = spark
       .readStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", "localhost:9092")
+      .option("kafka.bootstrap.servers", "kafka:9092")
       .option("subscribe", "flight_delay_classification_request")
       .load()
     df.printSchema()
@@ -139,7 +143,7 @@ object MakePrediction {
     finalPredictions.printSchema()
 
     // Define MongoUri for connection
-    val writeConfig = WriteConfig(Map("uri" -> "mongodb://127.0.0.1:27017/agile_data_science.flight_delay_classification_response"))
+    val writeConfig = WriteConfig(Map("uri" -> "mongodb://mongo:27017/agile_data_science.flight_delay_classification_response"))
 
     // Store to Mongo each streaming batch
     val flightRecommendations = finalPredictions.writeStream.foreachBatch {

@@ -12,7 +12,7 @@ import predict_utils
 # Set up Flask, Mongo and Elasticsearch
 app = Flask(__name__)
 
-client = MongoClient()
+client = MongoClient('mongo',27017)
 
 from pyelasticsearch import ElasticSearch
 elastic = ElasticSearch(config.ELASTIC_URL)
@@ -25,7 +25,7 @@ import datetime
 
 # Setup Kafka
 from kafka import KafkaProducer
-producer = KafkaProducer(bootstrap_servers=['localhost:9092'],api_version=(0,10))
+producer = KafkaProducer(bootstrap_servers=['kafka:9092'],api_version=(0,10))
 PREDICTION_TOPIC = 'flight_delay_classification_request'
 
 import uuid
@@ -33,23 +33,23 @@ import uuid
 # Chapter 5 controller: Fetch a flight and display it
 @app.route("/on_time_performance")
 def on_time_performance():
-  
+
   carrier = request.args.get('Carrier')
   flight_date = request.args.get('FlightDate')
   flight_num = request.args.get('FlightNum')
-  
+
   flight = client.agile_data_science.on_time_performance.find_one({
     'Carrier': carrier,
     'FlightDate': flight_date,
     'FlightNum': flight_num
   })
-  
+
   return render_template('flight.html', flight=flight)
 
 # Chapter 5 controller: Fetch all flights between cities on a given day and display them
 @app.route("/flights/<origin>/<dest>/<flight_date>")
 def list_flights(origin, dest, flight_date):
-  
+
   flights = client.agile_data_science.on_time_performance.find(
     {
       'Origin': origin,
@@ -62,7 +62,7 @@ def list_flights(origin, dest, flight_date):
     ]
   )
   flight_count = flights.count()
-  
+
   return render_template(
     'flights.html',
     flights=flights,
@@ -73,7 +73,7 @@ def list_flights(origin, dest, flight_date):
 # Controller: Fetch a flight table
 @app.route("/total_flights")
 def total_flights():
-  total_flights = client.agile_data_science.flights_by_month.find({}, 
+  total_flights = client.agile_data_science.flights_by_month.find({},
     sort = [
       ('Year', 1),
       ('Month', 1)
@@ -83,7 +83,7 @@ def total_flights():
 # Serve the chart's data via an asynchronous request (formerly known as 'AJAX')
 @app.route("/total_flights.json")
 def total_flights_json():
-  total_flights = client.agile_data_science.flights_by_month.find({}, 
+  total_flights = client.agile_data_science.flights_by_month.find({},
     sort = [
       ('Year', 1),
       ('Month', 1)
@@ -93,7 +93,7 @@ def total_flights_json():
 # Controller: Fetch a flight chart
 @app.route("/total_flights_chart")
 def total_flights_chart():
-  total_flights = client.agile_data_science.flights_by_month.find({}, 
+  total_flights = client.agile_data_science.flights_by_month.find({},
     sort = [
       ('Year', 1),
       ('Month', 1)
@@ -292,7 +292,7 @@ def delays():
   return render_template('delays.html')
 
 # Load our regression model
-from sklearn.externals import joblib
+import joblib
 from os import environ
 
 
@@ -303,7 +303,7 @@ project_home = os.environ["PROJECT_HOME"]
 # Make our API a post, so a search engine wouldn't hit it
 @app.route("/flights/delays/predict/regress", methods=['POST'])
 def regress_flight_delays():
-  
+
   api_field_type_map = \
     {
       "DepDelay": int,
@@ -313,31 +313,31 @@ def regress_flight_delays():
       "FlightNum": str,
       "Origin": str
     }
-  
+
   api_form_values = {}
   for api_field_name, api_field_type in api_field_type_map.items():
     api_form_values[api_field_name] = request.form.get(api_field_name, type=api_field_type)
-  
+
   # Set the direct values
   prediction_features = {}
   prediction_features['Origin'] = api_form_values['Origin']
   prediction_features['Dest'] = api_form_values['Dest']
   prediction_features['FlightNum'] = api_form_values['FlightNum']
-  
+
   # Set the derived values
   prediction_features['Distance'] = predict_utils.get_flight_distance(client, api_form_values['Origin'], api_form_values['Dest'])
-  
+
   # Turn the date into DayOfYear, DayOfMonth, DayOfWeek
   date_features_dict = predict_utils.get_regression_date_args(api_form_values['FlightDate'])
   for api_field_name, api_field_value in date_features_dict.items():
     prediction_features[api_field_name] = api_field_value
-  
+
   # Vectorize the features
   feature_vectors = vectorizer.transform([prediction_features])
-  
+
   # Make the prediction!
   result = regressor.predict(feature_vectors)[0]
-  
+
   # Return a JSON object
   result_obj = {"Delay": result}
   return json.dumps(result_obj)
@@ -345,7 +345,7 @@ def regress_flight_delays():
 @app.route("/flights/delays/predict")
 def flight_delays_page():
   """Serves flight delay predictions"""
-  
+
   form_config = [
     {'field': 'DepDelay', 'label': 'Departure Delay', 'value': 5},
     {'field': 'Carrier', 'value': 'AA'},
@@ -354,7 +354,7 @@ def flight_delays_page():
     {'field': 'Dest', 'label': 'Destination', 'value': 'SFO'},
     {'field': 'FlightNum', 'label': 'Flight Number', 'value': 1519},
   ]
-  
+
   return render_template('flight_delays_predict.html', form_config=form_config)
 
 # Make our API a post, so a search engine wouldn't hit it
@@ -370,32 +370,32 @@ def classify_flight_delays():
       "FlightNum": str,
       "Origin": str
     }
-  
+
   api_form_values = {}
   for api_field_name, api_field_type in api_field_type_map.items():
     api_form_values[api_field_name] = request.form.get(api_field_name, type=api_field_type)
-  
+
   # Set the direct values, which excludes Date
   prediction_features = {}
   for key, value in api_form_values.items():
     prediction_features[key] = value
-  
+
   # Set the derived values
   prediction_features['Distance'] = predict_utils.get_flight_distance(
     client, api_form_values['Origin'],
     api_form_values['Dest']
   )
-  
+
   # Turn the date into DayOfYear, DayOfMonth, DayOfWeek
   date_features_dict = predict_utils.get_regression_date_args(
     api_form_values['FlightDate']
   )
   for api_field_name, api_field_value in date_features_dict.items():
     prediction_features[api_field_name] = api_field_value
-  
+
   # Add a timestamp
   prediction_features['Timestamp'] = predict_utils.get_current_timestamp()
-  
+
   client.agile_data_science.prediction_tasks.insert_one(
     prediction_features
   )
@@ -404,7 +404,7 @@ def classify_flight_delays():
 @app.route("/flights/delays/predict_batch")
 def flight_delays_batch_page():
   """Serves flight delay predictions"""
-  
+
   form_config = [
     {'field': 'DepDelay', 'label': 'Departure Delay', 'value': 5},
     {'field': 'Carrier', 'value': 'AA'},
@@ -413,20 +413,20 @@ def flight_delays_batch_page():
     {'field': 'Dest', 'label': 'Destination', 'value': 'SFO'},
     {'field': 'FlightNum', 'label': 'Flight Number', 'value': 1519},
   ]
-  
+
   return render_template("flight_delays_predict_batch.html", form_config=form_config)
 
 @app.route("/flights/delays/predict_batch/results/<iso_date>")
 def flight_delays_batch_results_page(iso_date):
   """Serves page for batch prediction results"""
-  
+
   # Get today and tomorrow's dates as iso strings to scope query
   today_dt = iso8601.parse_date(iso_date)
   rounded_today = today_dt.date()
   iso_today = rounded_today.isoformat()
   rounded_tomorrow_dt = rounded_today + datetime.timedelta(days=1)
   iso_tomorrow = rounded_tomorrow_dt.isoformat()
-  
+
   # Fetch today's prediction results from Mongo
   predictions = client.agile_data_science.prediction_results.find(
     {
@@ -436,7 +436,7 @@ def flight_delays_batch_results_page(iso_date):
       }
     }
   )
-  
+
   return render_template(
     "flight_delays_predict_batch_results.html",
     predictions=predictions,
@@ -447,7 +447,7 @@ def flight_delays_batch_results_page(iso_date):
 @app.route("/flights/delays/predict/classify_realtime", methods=['POST'])
 def classify_flight_delays_realtime():
   """POST API for classifying flight delays"""
-  
+
   # Define the form fields to process
   api_field_type_map = \
     {
@@ -463,32 +463,32 @@ def classify_flight_delays_realtime():
   api_form_values = {}
   for api_field_name, api_field_type in api_field_type_map.items():
     api_form_values[api_field_name] = request.form.get(api_field_name, type=api_field_type)
-  
+
   # Set the direct values, which excludes Date
   prediction_features = {}
   for key, value in api_form_values.items():
     prediction_features[key] = value
-  
+
   # Set the derived values
   prediction_features['Distance'] = predict_utils.get_flight_distance(
     client, api_form_values['Origin'],
     api_form_values['Dest']
   )
-  
+
   # Turn the date into DayOfYear, DayOfMonth, DayOfWeek
   date_features_dict = predict_utils.get_regression_date_args(
     api_form_values['FlightDate']
   )
   for api_field_name, api_field_value in date_features_dict.items():
     prediction_features[api_field_name] = api_field_value
-  
+
   # Add a timestamp
   prediction_features['Timestamp'] = predict_utils.get_current_timestamp()
-  
+
   # Create a unique ID for this message
   unique_id = str(uuid.uuid4())
   prediction_features['UUID'] = unique_id
-  
+
   message_bytes = json.dumps(prediction_features).encode()
   producer.send(PREDICTION_TOPIC, message_bytes)
 
@@ -498,7 +498,7 @@ def classify_flight_delays_realtime():
 @app.route("/flights/delays/predict_kafka")
 def flight_delays_page_kafka():
   """Serves flight delay prediction page with polling form"""
-  
+
   form_config = [
     {'field': 'DepDelay', 'label': 'Departure Delay', 'value': 5},
     {'field': 'Carrier', 'value': 'AA'},
@@ -506,24 +506,24 @@ def flight_delays_page_kafka():
     {'field': 'Origin', 'value': 'ATL'},
     {'field': 'Dest', 'label': 'Destination', 'value': 'SFO'}
   ]
-  
+
   return render_template('flight_delays_predict_kafka.html', form_config=form_config)
 
 @app.route("/flights/delays/predict/classify_realtime/response/<unique_id>")
 def classify_flight_delays_realtime_response(unique_id):
   """Serves predictions to polling requestors"""
-  
+
   prediction = client.agile_data_science.flight_delay_classification_response.find_one(
     {
       "UUID": unique_id
     }
   )
-  
+
   response = {"status": "WAIT", "id": unique_id}
   if prediction:
     response["status"] = "OK"
     response["prediction"] = prediction
-  
+
   return json_util.dumps(response)
 
 def shutdown_server():
