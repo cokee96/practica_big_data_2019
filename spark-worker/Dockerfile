@@ -1,7 +1,9 @@
 FROM bde2020/spark-base:3.0.1-hadoop3.2
 
+COPY . .
 COPY start-worker.sh /
 COPY flight_prediction_2.12-0.1.jar /practica_big_data_2019/
+
 
 ENV SPARK_WORKER_WEBUI_PORT 8081
 ENV SPARK_WORKER_LOG /spark/logs

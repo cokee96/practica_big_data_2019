@@ -41,7 +41,7 @@ services:
       - MONGO_HOST=mongo
       - MONGO_PORT=27017
     volumes:
-      - practica_big_data_2019/:/practica_big_data_2019
+      - ../practica_big_data_2019/:/practica_big_data_2019
     command:
       "mongoimport --host mongo --port 27017 -d agile_data_science -c origin_dest_distances --mode upsert --file /practica_big_data_2019/data/origin_dest_distances.jsonl"
     networks:
@@ -73,7 +73,7 @@ services:
     networks:
       - red
     volumes:
-      - practica_big_data_2019/:/practica_big_data_2019
+      - ../practica_big_data_2019/:/practica_big_data_2019
   web:
     build:
       context: .
@@ -84,7 +84,7 @@ services:
     environment:
       - PROJECT_HOME=../practica_big_data_2019
     volumes:
-      - practica_big_data_2019/:/practica_big_data_2019
+      - ../practica_big_data_2019/:/practica_big_data_2019
 
 volumes:
   practica_big_data_2019:
